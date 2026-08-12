@@ -7,13 +7,13 @@ sources:
     schema: EXTERNAL
 
     tables:
-      - name: ext_campaign
-      - name: ext_customer
-      - name: ext_product
-      - name: ext_orders
-      - name: ext_employee
-      - name: ext_store
-      - name: ext_supplier
+      - name: ext_campaign_data
+      - name: ext_customer_data
+      - name: ext_product_data
+      - name: ext_orders_data
+      - name: ext_employee_data
+      - name: ext_store_data
+      - name: ext_supplier_data
 
 
   - name: bronze
