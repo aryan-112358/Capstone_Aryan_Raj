@@ -15,6 +15,13 @@
    attribution at the order level already. Orders are also
    guarded to fall within the campaign's own start/end window.
 
+   BUG FIX: order_discount_amount in s_orders is stored as a
+   whole percentage (e.g. 14.03 meaning 14.03%), not a fraction
+   (0.1403). The original (1 - order_discount_amount) treated it
+   as a fraction, producing e.g. (1 - 14.03) = -13.03 and massively
+   negative "net sales" on every order. Fixed by dividing by 100
+   before applying it.
+
    DOCUMENTED ASSUMPTION (spec ambiguity): the PS declares this
    fact's grain as per-date, but ROI and Repeat Purchase Rate
    reference "TotalCampaignCost" -- a single whole-campaign
@@ -39,7 +46,7 @@ WITH all_completed_orders AS (
         customer_id,
         campaign_id,
         order_date,
-        line_revenue * (1 - order_discount_amount) AS net_sales_amount
+        line_revenue * (1 - (order_discount_amount / 100.0)) AS net_sales_amount
 
     FROM {{ ref('s_orders') }}
 

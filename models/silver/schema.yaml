@@ -1,0 +1,244 @@
+version: 2
+
+models:
+
+  # =========================================================
+  # CONFIRMED STRUCTURE (verified via sample data in this project)
+  # =========================================================
+
+  - name: s_inventory
+    description: >
+      Grain: one row per product per snapshot_date, first snapshot per
+      product excluded (no beginning_stock to compare against).
+      sold_quantity is summed across the interval (previous_snapshot_date,
+      snapshot_date] from completed order_items, not an exact-date match --
+      snapshots can be several days apart per product.
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+      - name: snapshot_date
+        tests:
+          - not_null
+      - name: beginning_stock
+        tests:
+          - not_null
+      - name: ending_stock
+        tests:
+          - not_null
+      - name: sold_quantity
+        tests:
+          - not_null
+      - name: purchased_quantity
+        description: >
+          Inferred delta; can legitimately be negative (unobserved
+          shrinkage/returns -- no receiving events exist in source data).
+      - name: low_stock_flag
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: stale_snapshot_flag
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: negative_balance_flag
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: days_since_last_snapshot
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - product_id
+            - snapshot_date
+
+  - name: s_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: store_id
+        tests:
+          - not_null
+      - name: campaign_id
+        description: NULL when the order is not attributed to any campaign.
+      - name: order_date
+        tests:
+          - not_null
+      - name: order_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['completed', 'cancelled', 'pending']
+      - name: order_time_of_day
+        tests:
+          - accepted_values:
+              values: ['Morning', 'Afternoon', 'Evening', 'Night']
+      - name: delivery_status
+        tests:
+          - accepted_values:
+              values: ['On Time', 'Delayed', 'Potentially Delayed', 'In Transit']
+      - name: line_revenue
+        tests:
+          - not_null
+      - name: order_discount_amount
+        description: >
+          Stored as a whole percentage (e.g. 14.03 meaning 14.03%), NOT a
+          fraction -- confirmed via sample data. Any downstream model
+          applying this must divide by 100 before using it multiplicatively.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                severity: warn
+      - name: profit_margin_percentage
+
+  # =========================================================
+  # INFERRED STRUCTURE -- column names below are ASSUMPTIONS based
+  # on the PS's Table-Specific Transformations sections, not verified
+  # against actual model output in this project's build process.
+  # Run `dbt test --select <model>` and correct column names as needed
+  # before trusting these.
+  # =========================================================
+
+  - name: s_customer
+    description: >
+      ASSUMED STRUCTURE. Per PS Customer Transformations: full_name,
+      age (from birth_date), age_segment (Young/Middle-aged/Senior,
+      non-overlapping 18-35/36-55/56+ bands), validated email/phone.
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: ASSUMED column name.
+      - name: is_valid_email
+        description: ASSUMED column name.
+        tests:
+          - accepted_values:
+              values: [true, false]
+              config:
+                severity: warn
+      - name: phone_number
+        description: ASSUMED column name.
+      - name: is_valid_phone
+        description: ASSUMED column name.
+        tests:
+          - accepted_values:
+              values: [true, false]
+              config:
+                severity: warn
+      - name: age_segment
+        description: ASSUMED column name.
+        tests:
+          - accepted_values:
+              values: ['Young', 'Middle-aged', 'Senior']
+              config:
+                severity: warn
+
+  - name: s_product
+    description: >
+      ASSUMED STRUCTURE. Per PS Product Transformations: full description,
+      hierarchical category > subcategory > product_line, profit margin
+      percentage, low-stock flag, Pascal Case names/categories.
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: category
+        description: ASSUMED column name.
+      - name: subcategory
+        description: ASSUMED column name.
+      - name: profit_margin_percentage
+        description: >
+          ASSUMED column name. CASE WHEN unit_price > 0 THEN
+          ((unit_price - cost_price) / unit_price) * 100 ELSE NULL END.
+      - name: low_stock_flag
+        description: ASSUMED column name (stock_quantity < reorder_level).
+        tests:
+          - accepted_values:
+              values: [true, false]
+              config:
+                severity: warn
+
+  - name: s_store
+    description: >
+      ASSUMED STRUCTURE. Per PS Store Transformations: size_category
+      (Small/Medium/Large from square footage), store age, performance
+      metrics guarded against divide-by-zero, performance-issue flag
+      (achievement < 90%).
+    columns:
+      - name: store_id
+        tests:
+          - unique
+          - not_null
+      - name: size_category
+        description: ASSUMED column name.
+        tests:
+          - accepted_values:
+              values: ['Small', 'Medium', 'Large']
+              config:
+                severity: warn
+      - name: sales_target_achievement_percentage
+        description: ASSUMED column name.
+      - name: performance_issue_flag
+        description: >
+          ASSUMED column name. Flags stores with achievement < 90% per
+          the PS.
+        tests:
+          - accepted_values:
+              values: [true, false]
+              config:
+                severity: warn
+
+  - name: s_supplier
+    description: >
+      ASSUMED STRUCTURE. PS provides no dedicated Supplier Transformations
+      subsection beyond the generic cleaning rules (type casting, null
+      handling, dedup, trimming, capitalization) -- confirm actual
+      columns against the model.
+    columns:
+      - name: supplier_id
+        tests:
+          - unique
+          - not_null
+
+  - name: s_campaign
+    description: >
+      ASSUMED STRUCTURE. Per PS Marketing Campaign Transformations:
+      campaign duration, audience segment, budget/total_cost/total_revenue
+      parsed from currency strings, roi_calculation cast to numeric,
+      duplicates removed. NOTE: per the PS's own ROI validation note,
+      revenue-dependent ROI is NOT validated here -- only budget/cost
+      normalization happens in Silver; true ROI is computed and validated
+      in FACT_MarketingPerformance (Gold).
+    columns:
+      - name: campaign_id
+        tests:
+          - unique
+          - not_null
+      - name: budget
+        description: ASSUMED column name. Parsed from currency string.
+        tests:
+          - not_null
+      - name: total_cost
+        description: ASSUMED column name. Parsed from currency string.
+        tests:
+          - not_null
+      - name: start_date
+        tests:
+          - not_null
+      - name: end_date
+        tests:
+          - not_null
