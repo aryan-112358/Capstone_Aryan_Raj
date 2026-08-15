@@ -23,7 +23,9 @@ final AS (
 
         payment_terms,
 
-        supplier_type
+        supplier_type,
+
+        on_time_delivery_rate
 
     FROM src
 
