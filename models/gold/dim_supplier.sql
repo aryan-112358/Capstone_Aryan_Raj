@@ -14,10 +14,7 @@ final AS (
 
     SELECT
 
-        ROW_NUMBER() OVER (
-            ORDER BY supplier_id
-        ) AS supplier_key,
-
+      {{ dbt_utils.generate_surrogate_key(['supplier_id']) }} AS supplier_key,
         supplier_id,
 
         supplier_name,

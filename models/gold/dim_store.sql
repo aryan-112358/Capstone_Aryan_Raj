@@ -14,9 +14,7 @@ final AS (
 
     SELECT
 
-        ROW_NUMBER() OVER (
-            ORDER BY store_id
-        ) AS store_key,
+        {{ dbt_utils.generate_surrogate_key(['store_id']) }} AS store_key,
 
         store_id,
 

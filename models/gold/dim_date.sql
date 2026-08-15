@@ -24,9 +24,7 @@ final AS (
 
     SELECT
 
-        TO_NUMBER(
-            TO_CHAR(full_date, 'YYYYMMDD')
-        ) AS date_key,
+       {{ dbt_utils.generate_surrogate_key(['full_date']) }} AS date_key,
 
         full_date,
 
