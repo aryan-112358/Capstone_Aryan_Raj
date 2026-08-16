@@ -1,8 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='SILVER'
-) }}
-
 WITH current_orders AS (
 
     SELECT

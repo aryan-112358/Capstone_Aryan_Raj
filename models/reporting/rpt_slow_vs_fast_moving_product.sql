@@ -1,19 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
-/* =========================================================
-   Reporting View: Slow-moving vs Fast-moving Products
-   Doc: Inventory Analysis > Slow-moving vs. Fast-moving Products
-
-   Classification: NTILE(3) on avg_stock_turnover_ratio ->
-   Fast-moving (top third), Moderate (middle third),
-   Slow-moving (bottom third). Products with zero total units
-   sold across the whole window are classified separately as
-   "No Movement" rather than forced into a tercile.
-   ========================================================= */
-
 WITH product_turnover AS (
 
     SELECT

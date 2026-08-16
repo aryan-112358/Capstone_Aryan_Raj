@@ -1,8 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='SILVER'
-) }}
-
 WITH src AS (
 
     SELECT *
@@ -18,18 +13,9 @@ store_clean AS (
 
     SELECT
 
-        /* =================================================
-           KEY
-        ================================================= */
 
         TRIM(store_id) AS store_id,
 
-
-        /* =================================================
-           BASIC STORE DETAILS
-
-           Pascal Case normalization
-        ================================================= */
 
         INITCAP(
             TRIM(raw_data:store_name::STRING)

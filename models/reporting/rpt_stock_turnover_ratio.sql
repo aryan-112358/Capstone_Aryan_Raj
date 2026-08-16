@@ -1,8 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
 SELECT
 
     fi.product_key,

@@ -37,13 +37,21 @@ models:
   capstone_aryan_raj:
 
     bronze:
-      +schema: BRONZE
+      +schema: bronze
       +materialized: incremental
     
     silver:
-      +scehma: SILVER
+      +schema: silver
       +materialized: table
     
     gold:
-      +schema: GOLD
+      +schema: gold
       +materialized: table
+
+    audit:
+      +schema: audit
+      +materialized: table
+
+    reporting:
+      +schema: reporting
+      +materialized: view

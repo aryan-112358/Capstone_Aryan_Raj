@@ -102,19 +102,189 @@ models:
                 severity: warn
       - name: profit_margin_percentage
 
+  - name: s_product
+    description: >
+      CONFIRMED via sample data. Columns not listed below also exist
+      (brand, subcategory, product_line, color, size, dimensions, weight,
+      warranty_period, launch_date, category_hierarchy, etc.) -- only
+      the columns with meaningful test coverage are listed here.
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: subcategory
+      - name: supplier_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('s_supplier')
+              field: supplier_id
+      - name: unit_price
+        tests:
+          - not_null
+      - name: cost_price
+        tests:
+          - not_null
+      - name: stock_quantity
+      - name: reorder_level
+      - name: profit_margin_percentage
+        description: >
+          CONFIRMED column name. CASE WHEN unit_price > 0 THEN
+          ((unit_price - cost_price) / unit_price) * 100 ELSE NULL END.
+      - name: low_stock_flag
+        description: CONFIRMED column name (stock_quantity < reorder_level).
+        tests:
+          - accepted_values:
+              values: [true, false]
+      - name: dbt_valid_to
+        description: >
+          NULL indicates the current SCD version of the product record.
+
+  - name: s_store
+    description: >
+      CONFIRMED via sample data. Columns not listed below also exist
+      (region, manager_id, current_sales, sales_target, monthly_rent,
+      employee_count, full_address, email, phone_number, weekdays,
+      weekends, holidays, services, store_age_years, revenue_per_sq_ft,
+      employee_efficiency, etc.) -- only columns with meaningful test
+      coverage are listed here.
+    columns:
+      - name: store_id
+        tests:
+          - unique
+          - not_null
+      - name: store_type
+      - name: size_sq_ft
+      - name: store_size_category
+        description: CONFIRMED column name.
+        tests:
+          - accepted_values:
+              values: ['Small', 'Medium', 'Large']
+      - name: sales_target_achievement_percentage
+        description: CONFIRMED column name.
+      - name: performance_issue_flag
+        description: >
+          CORRECTION: this column holds STRING values 'Yes'/'No', NOT
+          boolean true/false as previously assumed -- confirmed via
+          sample data (e.g. PERFORMANCE_ISSUE_FLAG = "Yes"). The
+          accepted_values test below was fixed to match; the prior
+          version of this test would have failed on every run.
+        tests:
+          - accepted_values:
+              values: ['Yes', 'No']
+      - name: is_valid_postal_code
+        tests:
+          - accepted_values:
+              values: [true, false]
+      - name: dbt_valid_to
+        description: >
+          NULL indicates the current SCD version of the store record.
+
+  - name: s_supplier
+    description: >
+      CONFIRMED via sample data -- previously untested beyond supplier_id
+      since the PS has no dedicated Supplier Transformations subsection.
+      Columns not listed below also exist (contact_person, address,
+      contact_information, credit_rating, lead_time_days,
+      minimum_order_quantity, contract_id, contract_start_date,
+      contract_end_date, quality_rating, response_time_hours,
+      returns_percentage, etc.).
+    columns:
+      - name: supplier_id
+        tests:
+          - unique
+          - not_null
+      - name: supplier_name
+        tests:
+          - not_null
+      - name: supplier_type
+      - name: payment_terms
+      - name: is_active
+        tests:
+          - accepted_values:
+              values: [true, false]
+      - name: on_time_delivery_rate
+        description: >
+          CONFIRMED column name and scale -- already a whole percentage
+          (e.g. 82.90 meaning 82.90%), no /100 correction needed.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                severity: warn
+      - name: average_delay_days
+      - name: defect_rate
+      - name: dbt_valid_to
+        description: >
+          NULL indicates the current SCD version of the supplier record.
+
+  - name: s_campaign
+    description: >
+      CONFIRMED via sample data. Columns not listed below also exist
+      (campaign_name, channel, description, target_audience,
+      audience_age_range, audience_location, roi_calculation, etc.).
+      NOTE: per the PS's own ROI validation note, revenue-dependent ROI
+      is NOT validated here -- only budget/cost normalization happens in
+      Silver; true ROI is computed and validated in
+      FACT_MarketingPerformance (Gold).
+    columns:
+      - name: campaign_id
+        tests:
+          - unique
+          - not_null
+      - name: campaign_type
+        description: >
+          CONFIRMED to exist (previously thought missing -- earlier
+          reporting views used audience_segment as a substitute grouping
+          dimension; rpt_roi_by_campaign_type should be rebuilt to group
+          by this column instead).
+        tests:
+          - not_null
+      - name: audience_segment
+        description: >
+          CORRECTION: actual column name is audience_segment, NOT
+          target_audience_segment as previously assumed in the Gold
+          dim_campaign schema.
+      - name: budget
+        tests:
+          - not_null
+      - name: total_cost
+        tests:
+          - not_null
+      - name: total_revenue
+        description: >
+          Self-reported figure from source data, NOT the same as
+          attributed sales computed in Gold's FACT_MarketingPerformance.
+          Do not substitute this for actual computed Total Sales
+          Influenced.
+      - name: start_date
+        tests:
+          - not_null
+      - name: end_date
+        tests:
+          - not_null
+      - name: campaign_duration_days
+      - name: dbt_valid_to
+        description: >
+          NULL indicates the current SCD version of the campaign record.
+
   # =========================================================
-  # INFERRED STRUCTURE -- column names below are ASSUMPTIONS based
-  # on the PS's Table-Specific Transformations sections, not verified
-  # against actual model output in this project's build process.
-  # Run `dbt test --select <model>` and correct column names as needed
-  # before trusting these.
+  # STILL UNVERIFIED -- no sample data was provided for this model
+  # in this project's build process. Confirm columns before trusting.
   # =========================================================
 
   - name: s_customer
     description: >
-      ASSUMED STRUCTURE. Per PS Customer Transformations: full_name,
-      age (from birth_date), age_segment (Young/Middle-aged/Senior,
-      non-overlapping 18-35/36-55/56+ bands), validated email/phone.
+      ASSUMED STRUCTURE -- no sample CSV provided for this model yet.
+      Per PS Customer Transformations: full_name, age (from birth_date),
+      age_segment (Young/Middle-aged/Senior, non-overlapping 18-35/36-
+      55/56+ bands), validated email/phone.
     columns:
       - name: customer_id
         tests:
@@ -138,107 +308,10 @@ models:
               values: [true, false]
               config:
                 severity: warn
-      - name: age_segment
+      - name: customer_segment
         description: ASSUMED column name.
         tests:
           - accepted_values:
               values: ['Young', 'Middle-aged', 'Senior']
               config:
                 severity: warn
-
-  - name: s_product
-    description: >
-      ASSUMED STRUCTURE. Per PS Product Transformations: full description,
-      hierarchical category > subcategory > product_line, profit margin
-      percentage, low-stock flag, Pascal Case names/categories.
-    columns:
-      - name: product_id
-        tests:
-          - unique
-          - not_null
-      - name: category
-        description: ASSUMED column name.
-      - name: subcategory
-        description: ASSUMED column name.
-      - name: profit_margin_percentage
-        description: >
-          ASSUMED column name. CASE WHEN unit_price > 0 THEN
-          ((unit_price - cost_price) / unit_price) * 100 ELSE NULL END.
-      - name: low_stock_flag
-        description: ASSUMED column name (stock_quantity < reorder_level).
-        tests:
-          - accepted_values:
-              values: [true, false]
-              config:
-                severity: warn
-
-  - name: s_store
-    description: >
-      ASSUMED STRUCTURE. Per PS Store Transformations: size_category
-      (Small/Medium/Large from square footage), store age, performance
-      metrics guarded against divide-by-zero, performance-issue flag
-      (achievement < 90%).
-    columns:
-      - name: store_id
-        tests:
-          - unique
-          - not_null
-      - name: size_category
-        description: ASSUMED column name.
-        tests:
-          - accepted_values:
-              values: ['Small', 'Medium', 'Large']
-              config:
-                severity: warn
-      - name: sales_target_achievement_percentage
-        description: ASSUMED column name.
-      - name: performance_issue_flag
-        description: >
-          ASSUMED column name. Flags stores with achievement < 90% per
-          the PS.
-        tests:
-          - accepted_values:
-              values: [true, false]
-              config:
-                severity: warn
-
-  - name: s_supplier
-    description: >
-      ASSUMED STRUCTURE. PS provides no dedicated Supplier Transformations
-      subsection beyond the generic cleaning rules (type casting, null
-      handling, dedup, trimming, capitalization) -- confirm actual
-      columns against the model.
-    columns:
-      - name: supplier_id
-        tests:
-          - unique
-          - not_null
-
-  - name: s_campaign
-    description: >
-      ASSUMED STRUCTURE. Per PS Marketing Campaign Transformations:
-      campaign duration, audience segment, budget/total_cost/total_revenue
-      parsed from currency strings, roi_calculation cast to numeric,
-      duplicates removed. NOTE: per the PS's own ROI validation note,
-      revenue-dependent ROI is NOT validated here -- only budget/cost
-      normalization happens in Silver; true ROI is computed and validated
-      in FACT_MarketingPerformance (Gold).
-    columns:
-      - name: campaign_id
-        tests:
-          - unique
-          - not_null
-      - name: budget
-        description: ASSUMED column name. Parsed from currency string.
-        tests:
-          - not_null
-      - name: total_cost
-        description: ASSUMED column name. Parsed from currency string.
-        tests:
-          - not_null
-      - name: start_date
-        tests:
-          - not_null
-      - name: end_date
-        tests:
-          - not_null

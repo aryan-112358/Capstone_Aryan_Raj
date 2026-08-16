@@ -1,26 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
-/* =========================================================
-   Reporting View: Supplier Contribution by Product Category
-   Doc: Supplier Performance > Supplier Contribution by
-        Product Category
-
-   Sourced from s_inventory (product+date grain), NOT
-   fact_inventory, to avoid the store fan-out duplication in
-   fact_inventory -- purchased_quantity there is a company-wide
-   value repeated identically across every store row, so
-   summing directly from fact_inventory would inflate totals
-   by a factor of store count.
-
-   Negative purchased_quantity deltas (inferred, can go
-   negative due to unobserved shrinkage/returns) are clamped
-   to 0 before aggregation, consistent with fact_inventory's
-   own supplier_contribution_percentage calculation.
-   ========================================================= */
-
 WITH supplier_category_purchases AS (
 
     SELECT
