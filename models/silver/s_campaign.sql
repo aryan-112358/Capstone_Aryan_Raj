@@ -1,8 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='SILVER'
-) }}
-
 WITH src_campaign AS (
 
     SELECT *
@@ -18,10 +13,6 @@ WITH src_campaign AS (
 cleaned AS (
 
     SELECT
-
-        /* =================================================
-           CAMPAIGN KEY
-        ================================================= */
 
         TRIM(campaign_id) AS campaign_id,
 

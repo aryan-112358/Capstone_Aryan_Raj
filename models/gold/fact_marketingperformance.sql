@@ -1,44 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='GOLD'
-) }}
-
-/* =========================================================
-   FACT_MarketingPerformance
-
-   GRAIN: one row per campaign per date.
-
-   ATTRIBUTION RULE (per doc requirement -- must be explicit):
-   an order is attributed to whatever CAMPAIGN_ID is recorded
-   directly on it in s_orders. No last-touch or lookback-window
-   logic is applied, since the source data assigns campaign
-   attribution at the order level already. Orders are also
-   guarded to fall within the campaign's own start/end window.
-
-   BUG FIX: order_discount_amount in s_orders is stored as a
-   whole percentage (e.g. 14.03 meaning 14.03%), not a fraction
-   (0.1403). The original (1 - order_discount_amount) treated it
-   as a fraction, producing e.g. (1 - 14.03) = -13.03 and massively
-   negative "net sales" on every order. Fixed by dividing by 100
-   before applying it.
-
-   DOCUMENTED ASSUMPTION (spec ambiguity): the PS declares this
-   fact's grain as per-date, but ROI and Repeat Purchase Rate
-   reference "TotalCampaignCost" -- a single whole-campaign
-   figure, not a daily one. Applying total campaign cost against
-   a single day's sales would produce a meaningless ROI swing.
-   Resolution: Total Sales Influenced and New Customers Acquired
-   are DAILY (additive across dates, safe to roll up in reporting
-   views). ROI and Repeat Purchase Rate are computed CUMULATIVE-
-   TO-DATE per campaign, producing a trend line that only makes
-   sense against the fixed total campaign cost. Confirm this
-   interpretation if the spec author is available.
-
-   Only COMPLETED orders count toward sales/customer metrics,
-   consistent with how completed-order filtering is applied
-   elsewhere in this project's Silver layer (Inventory).
-   ========================================================= */
-
 WITH all_completed_orders AS (
 
     SELECT
@@ -53,12 +12,6 @@ WITH all_completed_orders AS (
     WHERE order_status = 'completed'
 
 ),
-
-/* A customer's true first-ever purchase, across ALL their
-   orders (campaign-attributed or not) -- this is what makes
-   "New Customers Acquired" mean the same thing as the doc's
-   "not in any prior FACT_Sales" check, without needing a
-   correlated subquery. */
 
 customer_first_purchase AS (
 
@@ -100,11 +53,6 @@ campaign_orders AS (
     WHERE o.campaign_id IS NOT NULL
 
 ),
-
-/* Bring in campaign window bounds to guard against any order
-   whose campaign_id is set but whose order_date falls outside
-   that campaign's declared active window (data quality check,
-   mirrors the doc's BETWEEN StartDate AND EndDate condition). */
 
 campaign_orders_bounded AS (
 

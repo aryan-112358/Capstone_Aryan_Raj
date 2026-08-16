@@ -1,20 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
-/* =========================================================
-   Reporting View: Inventory Valuation
-   Doc: Inventory Analysis > Inventory Valuation
-
-   Sourced from s_inventory (product+date grain) rather than
-   fact_inventory, to avoid the store fan-out duplication in
-   fact_inventory (beginning/ending stock are company-wide
-   values repeated identically across every store row there).
-   Valuation is as of each product's most recent available
-   snapshot.
-   ========================================================= */
-
 WITH latest_snapshot AS (
 
     SELECT

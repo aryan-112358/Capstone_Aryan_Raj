@@ -1,22 +1,10 @@
-{{ config(
-    materialized='table',
-    schema='GOLD'
-) }}
-
 WITH date_spine AS (
 
-    SELECT
-        DATEADD(
-            DAY,
-            SEQ4(),
-            TO_DATE('2024-04-01')
-        ) AS full_date
-
-    FROM TABLE(
-        GENERATOR(
-            ROWCOUNT => 1000
-        )
-    )
+    {{ dbt_utils.date_spine(
+        datepart="day",
+        start_date="to_date('2024-04-01')",
+        end_date="dateadd(day, 1, to_date('2024-09-27'))"
+    ) }}
 
 ),
 
@@ -24,34 +12,45 @@ final AS (
 
     SELECT
 
-       {{ dbt_utils.generate_surrogate_key(['full_date']) }} AS date_key,
+        {{ dbt_utils.generate_surrogate_key(['date_day']) }} AS date_key,
 
-        full_date,
+        date_day AS full_date,
 
-        YEAR(full_date) AS year,
+        YEAR(date_day) AS year,
 
-        'Q' || QUARTER(full_date) AS quarter,
+        'Q' || QUARTER(date_day) AS quarter,
 
-        MONTH(full_date) AS month,
+        MONTH(date_day) AS month,
 
-        WEEK(full_date) AS week,
+        WEEK(date_day) AS week,
 
-        DAYOFWEEK(full_date) AS day_of_week,
+        DAYOFWEEK(date_day) AS day_of_week,
 
-        FALSE AS holiday_flag,
+        /* US federal holidays falling within the data window
+           (2024-04-01 to 2024-09-27): Memorial Day, Juneteenth,
+           Independence Day, Labor Day. Fixed-date/rule-based,
+           not an exhaustive holiday calendar -- extend this list
+           if the data window changes. */
+        CASE
+            WHEN date_day = '2024-05-27' THEN TRUE  -- Memorial Day
+            WHEN date_day = '2024-06-19' THEN TRUE  -- Juneteenth
+            WHEN date_day = '2024-07-04' THEN TRUE  -- Independence Day
+            WHEN date_day = '2024-09-02' THEN TRUE  -- Labor Day
+            ELSE FALSE
+        END AS holiday_flag,
 
         CASE
 
-            WHEN MONTH(full_date) IN (12, 1, 2)
+            WHEN MONTH(date_day) IN (12, 1, 2)
                 THEN 'Winter'
 
-            WHEN MONTH(full_date) IN (3, 4, 5)
+            WHEN MONTH(date_day) IN (3, 4, 5)
                 THEN 'Spring'
 
-            WHEN MONTH(full_date) IN (6, 7, 8)
+            WHEN MONTH(date_day) IN (6, 7, 8)
                 THEN 'Summer'
 
-            ELSE 'Autumn'
+            ELSE 'Fall'
 
         END AS season
 
@@ -61,4 +60,3 @@ final AS (
 
 SELECT *
 FROM final
-WHERE full_date <= TO_DATE('2027-01-01')

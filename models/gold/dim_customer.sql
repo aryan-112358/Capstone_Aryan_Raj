@@ -1,8 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='GOLD'
-) }}
-
 WITH src AS (
 
     SELECT *

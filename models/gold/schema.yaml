@@ -8,14 +8,14 @@ models:
 
   - name: dim_product
     description: >
-      Product dimension. ProductKey is the surrogate key, ProductID the
-      natural key from source. SupplierID is carried as a text FK to
-      dim_supplier.supplier_id (no supplier_key stored directly on this
-      dimension -- fact tables reach SupplierKey via dim_product -> supplier_id
-      -> dim_supplier).
+      CONFIRMED via sample data. Product dimension. ProductKey is a
+      surrogate hash key, ProductID the natural key from source.
+      SupplierID is carried as a text FK to dim_supplier.supplier_id (no
+      supplier_key stored directly on this dimension -- fact tables reach
+      SupplierKey via dim_product -> supplier_id -> dim_supplier).
     columns:
       - name: product_key
-        description: Surrogate key.
+        description: Surrogate key (hash).
         tests:
           - unique
           - not_null
@@ -37,12 +37,19 @@ models:
       - name: unit_price
         tests:
           - not_null
+      - name: profit_margin_percentage
+      - name: low_stock_flag
+        tests:
+          - accepted_values:
+              values: [true, false]
 
   - name: dim_supplier
-    description: Supplier dimension. SupplierKey is the surrogate key.
+    description: >
+      CONFIRMED via sample data. Supplier dimension. SupplierKey is a
+      surrogate hash key.
     columns:
       - name: supplier_key
-        description: Surrogate key.
+        description: Surrogate key (hash).
         tests:
           - unique
           - not_null
@@ -51,17 +58,32 @@ models:
         tests:
           - not_null
           - unique
+      - name: supplier_name
+        tests:
+          - not_null
+      - name: supplier_type
+      - name: payment_terms
+      - name: on_time_delivery_rate
+        description: >
+          CONFIRMED to exist. Already a whole percentage (e.g. 81.30
+          meaning 81.30%), no /100 correction needed.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                severity: warn
 
   - name: dim_store
     description: >
-      Store dimension. StoreKey is the surrogate key. NOTE: column names
-      below (size_category, store_type) are assumed per the PS's declared
-      DIM_Store field list -- confirm against the actual model output,
-      since this dimension's structure was not directly verified via
-      sample data in this project's build process.
+      CONFIRMED via sample data. Store dimension. StoreKey is a surrogate
+      hash key. size_category confirmed as the correct column name
+      (distinct from Silver's store_size_category -- naming differs
+      between layers).
     columns:
       - name: store_key
-        description: Surrogate key.
+        description: Surrogate key (hash).
         tests:
           - unique
           - not_null
@@ -70,24 +92,37 @@ models:
         tests:
           - not_null
           - unique
+      - name: store_name
+        tests:
+          - not_null
+      - name: region
+      - name: store_type
+      - name: opening_date
+        tests:
+          - not_null
       - name: size_category
-        description: >
-          Derived store size band. ASSUMPTION -- confirm exact column name
-          and values against the actual dim_store model.
+        description: CONFIRMED column name and values.
         tests:
           - accepted_values:
               values: ['Small', 'Medium', 'Large']
-              config:
-                severity: warn
 
   - name: dim_date
     description: >
-      Date dimension generated from a dbt_utils.date_spine spanning
-      2024-04-01 to 2024-09-27, per the PS build note. Gap-free by
-      construction.
+      CONFIRMED via sample data. Date dimension generated from a
+      dbt_utils.date_spine spanning 2024-04-01 to 2024-09-27, per the PS
+      build note. Gap-free by construction.
+
+      CORRECTION: date_key is a surrogate HASH string (e.g.
+      "70edc7a9e19938d258df30ed87f6cac6"), NOT a YYYYMMDD integer as
+      previously documented. Confirmed consistent with the hash-format
+      date_key used in fact_inventory and fact_marketingperformance, so
+      joins are unaffected -- this was a documentation error only, not a
+      test failure or functional bug.
+
+      quarter is stored as a string label (e.g. "Q2"), not an integer.
     columns:
       - name: date_key
-        description: Surrogate key (YYYYMMDD integer format).
+        description: Surrogate key (hash string, not YYYYMMDD integer).
         tests:
           - unique
           - not_null
@@ -99,6 +134,7 @@ models:
         tests:
           - not_null
       - name: quarter
+        description: String label format (e.g. "Q2"), not an integer.
         tests:
           - not_null
       - name: month
@@ -113,24 +149,19 @@ models:
           - accepted_values:
               values: [true, false]
       - name: season
-        description: >
-          ASSUMPTION on accepted values -- confirm actual season labels
-          used in the model (e.g. Spring/Summer/Fall/Winter vs other
-          naming).
+        description: CONFIRMED values via sample data.
         tests:
           - accepted_values:
               values: ['Spring', 'Summer', 'Fall', 'Winter']
-              config:
-                severity: warn
 
   - name: dim_campaign
     description: >
-      Marketing campaign dimension, built from an SCD Type 2 snapshot.
-      Only current rows (dbt_valid_to IS NULL) should be used for joins
-      from fact tables -- enforced at the source snapshot level.
+      CONFIRMED via sample data. Marketing campaign dimension, built from
+      an SCD Type 2 snapshot. Only current rows (dbt_valid_to IS NULL)
+      should be used for joins from fact tables.
     columns:
       - name: campaign_key
-        description: Surrogate key.
+        description: Surrogate key (hash).
         tests:
           - unique
           - not_null
@@ -138,18 +169,38 @@ models:
         description: Natural key from source.
         tests:
           - not_null
+      - name: campaign_name
+      - name: campaign_type
+        description: >
+          CONFIRMED to exist. rpt_roi_by_campaign_type.sql correctly
+          groups by this column.
+        tests:
+          - not_null
+      - name: channel
+      - name: audience_segment
+        description: >
+          CONFIRMED column name. NOTE: rpt_sales_impact_of_campaigns.sql
+          and rpt_customer_engagement_by_campaign.sql currently reference
+          dc.target_audience_segment, which does NOT exist -- those two
+          views need to be corrected to use audience_segment instead, or
+          they will fail to compile.
       - name: budget
         tests:
           - not_null
       - name: total_cost
         tests:
           - not_null
+      - name: total_revenue
+        description: >
+          Self-reported figure from source data, NOT the same as
+          attributed sales computed in Gold's FACT_MarketingPerformance.
       - name: start_date
         tests:
           - not_null
       - name: end_date
         tests:
           - not_null
+      - name: campaign_duration_days
       - name: dbt_valid_to
         description: >
           NULL indicates the current version of the campaign record.
@@ -158,15 +209,12 @@ models:
 
   - name: dim_customer
     description: >
-      Customer dimension. NOTE: this dimension exists in the project but
-      is not explicitly declared in the PS's Gold Layer dimension list
-      (DIM_Product, DIM_Supplier, DIM_Store, DIM_Date, DIM_MarketingCampaign
-      only) -- it is implied by CustomerKey references in the
-      FACT_MarketingPerformance formulas. Column names below are assumed;
-      confirm against the actual model.
+      CONFIRMED via sample data. Customer dimension. customer_key is a
+      simple integer surrogate key (not a hash, unlike other Gold
+      dimensions -- confirm this is intentional).
     columns:
       - name: customer_key
-        description: Surrogate key.
+        description: Surrogate key (integer, not hash).
         tests:
           - unique
           - not_null
@@ -175,15 +223,26 @@ models:
         tests:
           - not_null
           - unique
+      - name: full_name
+      - name: email
+      - name: is_valid_email
+        tests:
+          - accepted_values:
+              values: [true, false]
+      - name: phone_number
+      - name: is_valid_phone
+        tests:
+          - accepted_values:
+              values: [true, false]
+      - name: age
       - name: customer_segment
-        description: >
-          Customer age band, per the PS's canonical 18-35 / 36-55 / 56+
-          bands (Young / Middle-aged / Senior).
+        description: CONFIRMED column name and values.
         tests:
           - accepted_values:
               values: ['Young', 'Middle-aged', 'Senior']
-              config:
-                severity: warn
+      - name: loyalty_tier
+      - name: total_purchases
+      - name: total_spend
 
   # =========================================================
   # FACT TABLES
@@ -191,7 +250,8 @@ models:
 
   - name: fact_inventory
     description: >
-      Grain: one row per product per store per date, per PS spec.
+      CONFIRMED via sample data. Grain: one row per product per store per
+      date, per PS spec.
 
       DATA LIMITATION: the product source has no store-level stock
       breakdown -- beginning_inventory, ending_inventory, and
@@ -259,25 +319,7 @@ models:
 
   - name: fact_marketingperformance
     description: >
-      Grain: one row per campaign per date.
-
-      ATTRIBUTION RULE (per PS requirement -- stated here per the doc's
-      instruction that it "must be defined in the model documentation"):
-      an order is attributed to whatever CAMPAIGN_ID is recorded directly
-      on it in s_orders. No last-touch or lookback-window logic is
-      applied, since source data assigns campaign attribution at the
-      order level already. Orders are additionally guarded to fall within
-      the campaign's own start/end window before counting toward any
-      metric.
-
-      DOCUMENTED ASSUMPTION (spec ambiguity): the PS declares this fact's
-      grain as per-date, but the ROI and Repeat Purchase Rate formulas
-      reference "TotalCampaignCost" -- a single whole-campaign figure, not
-      a daily one. Resolution: total_sales_influenced and
-      new_customers_acquired are DAILY (additive, safe to roll up in
-      reporting views). roi and repeat_purchase_rate are computed
-      CUMULATIVE-TO-DATE per campaign, producing a trend line that is
-      meaningful against the fixed total campaign cost.
+      CONFIRMED via sample data. Grain: one row per campaign per date.
     columns:
       - name: marketing_performance_key
         description: Surrogate key (hash of campaign_key, activity_date).

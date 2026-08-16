@@ -1,8 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='SILVER'
-) }}
-
 WITH products_flattened AS (
 
     SELECT

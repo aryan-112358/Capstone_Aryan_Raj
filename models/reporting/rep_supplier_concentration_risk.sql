@@ -1,27 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
-/* =========================================================
-   Reporting View: Supplier Concentration Risk
-   Doc: Supplier Performance > Supplier Concentration Risk
-
-   Sourced from s_inventory (product+date grain), NOT
-   fact_inventory, to avoid the same store fan-out duplication
-   issue as the Contribution-by-Category view.
-
-   Concentration is measured as each supplier's overall share
-   of total purchased_quantity across all products/dates, plus
-   an HHI-style squared-share contribution (standard market
-   concentration measure: sum of squared market shares).
-
-   concentration_risk_flag uses a simple, documented threshold
-   (>25% single-supplier share = High, >10% = Medium) -- adjust
-   to your organization's actual risk-tolerance standard if
-   different.
-   ========================================================= */
-
 WITH supplier_purchases AS (
 
     SELECT
@@ -62,7 +38,7 @@ SELECT
     ws.purchased_quantity,
     ws.overall_contribution_percentage,
 
-    ROUND(POWER(ws.overall_contribution_percentage, 2), 2) AS hhi_contribution,
+    POWER(ws.overall_contribution_percentage, 2) AS hhi_contribution,
 
     CASE
         WHEN ws.overall_contribution_percentage > 25 THEN 'High'

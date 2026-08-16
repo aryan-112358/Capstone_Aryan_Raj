@@ -1,22 +1,3 @@
-{{ config(
-    materialized='table',
-    schema='GOLD'
-) }}
-
-/* =========================================================
-   FACT_Inventory
-
-   GRAIN: one row per product per store per date.
-
-   DATA LIMITATION: source product stock has no store
-   breakdown -- beginning/ending stock and purchased_quantity
-   are company-wide values duplicated across every store row
-   for a product+date (not genuinely store-specific). Only
-   sold_quantity (from orders, which does carry store_id) and
-   supplier_contribution_percentage (a true cross-product
-   aggregate) are genuinely accurate per store/supplier.
-   ========================================================= */
-
 WITH inventory AS (
 
     SELECT *

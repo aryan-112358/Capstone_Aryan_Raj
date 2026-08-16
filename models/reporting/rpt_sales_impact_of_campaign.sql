@@ -1,18 +1,3 @@
-{{ config(
-    materialized='view',
-    schema='REPORTING'
-) }}
-
-/* =========================================================
-   Reporting View: Sales Impact of Marketing Campaigns
-   Doc: Marketing Effectiveness Dashboard >
-        Sales Impact of Marketing Campaigns
-
-   Total Sales Influenced is summed across the daily rows in
-   fact_marketingperformance (additive by design). Final ROI
-   is the latest cumulative value recorded for the campaign.
-   ========================================================= */
-
 SELECT
 
     dc.campaign_key,
