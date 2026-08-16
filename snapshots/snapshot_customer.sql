@@ -14,7 +14,7 @@ WITH unwrapped AS (
 
     SELECT
         cust.value AS customer_json,
-        LOADED_AT,
+        CAST(LOADED_AT AS TIMESTAMP_NTZ) AS LOADED_AT,
         SOURCE_FILE,
         BATCH_ID
 
@@ -52,14 +52,12 @@ SELECT
 
     customer_id,
 
-    last_modified_date,
+    CAST(last_modified_date AS TIMESTAMP_NTZ) AS last_modified_date,
 
     raw_data,
 
     LOADED_AT,
-
     SOURCE_FILE,
-
     BATCH_ID
 
 FROM prepared
@@ -67,15 +65,11 @@ FROM prepared
 WHERE customer_id IS NOT NULL
   AND customer_id <> ''
 
-  /* Keep the latest version of each customer */
-
 QUALIFY ROW_NUMBER() OVER (
-
     PARTITION BY customer_id
     ORDER BY
         last_modified_date DESC,
         LOADED_AT DESC
-
 ) = 1
 
 {% endsnapshot %}
