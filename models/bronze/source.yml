@@ -23,13 +23,13 @@ sources:
     config:
       freshness:
         warn_after:
-          count: 1
+          count: 7
           period: day
         error_after:
-          count: 2
+          count: 12
           period: day
 
-      loaded_at_field: _LOADED_AT
+      loaded_at_field: LOADED_AT
 
     tables:
       - name: b_campaign

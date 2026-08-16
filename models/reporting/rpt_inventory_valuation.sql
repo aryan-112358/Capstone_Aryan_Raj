@@ -21,6 +21,7 @@ SELECT
     dp.product_id,
     dp.product_name,
     dp.category,
+    dp.subcategory,
 
     ls.snapshot_date AS as_of_date,
     ls.ending_stock AS ending_inventory,
