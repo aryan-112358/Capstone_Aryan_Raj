@@ -30,10 +30,6 @@ SELECT
 
     ROUND(AVG(cfm.final_roi), 2) AS avg_roi,
 
-    ROUND(MIN(cfm.final_roi), 2) AS min_roi,
-
-    ROUND(MAX(cfm.final_roi), 2) AS max_roi,
-
     ROUND(
         SUM(cfm.final_sales_influenced),
         2
